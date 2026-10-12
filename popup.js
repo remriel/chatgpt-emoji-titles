@@ -1,4 +1,5 @@
 const automatic = document.getElementById('automatic');
+const automaticRemove = document.getElementById('automatic-remove');
 const pick = document.getElementById('pick');
 const status = document.getElementById('status');
 
@@ -7,16 +8,22 @@ async function activeChatTab() {
   return tab?.url?.startsWith('https://chatgpt.com/') ? tab : null;
 }
 
-chrome.storage.local.get({ automatic: false }, ({ automatic: enabled }) => {
-  automatic.checked = enabled;
+chrome.storage.local.get({ automatic: false, automaticRemove: false }, settings => {
+  automatic.checked = settings.automatic && !settings.automaticRemove;
+  automaticRemove.checked = settings.automaticRemove;
 });
 
-automatic.addEventListener('change', async () => {
-  await chrome.storage.local.set({ automatic: automatic.checked });
+async function updateAutomaticMode(changed) {
+  if (changed === automatic && automatic.checked) automaticRemove.checked = false;
+  if (changed === automaticRemove && automaticRemove.checked) automatic.checked = false;
+  await chrome.storage.local.set({automatic:automatic.checked, automaticRemove:automaticRemove.checked});
   const tab = await activeChatTab();
   if (tab) chrome.tabs.sendMessage(tab.id, { type: 'AUTOMATIC_CHANGED' }).catch(() => {});
-  status.textContent = automatic.checked ? 'Automatic mode is on.' : 'Automatic mode is off.';
-});
+  status.textContent = automaticRemove.checked ? 'Automatic removal is on.' : automatic.checked ? 'Automatic emoji adding is on.' : 'Automatic modes are off.';
+}
+
+automatic.addEventListener('change', () => updateAutomaticMode(automatic));
+automaticRemove.addEventListener('change', () => updateAutomaticMode(automaticRemove));
 
 pick.addEventListener('click', async () => {
   const tab = await activeChatTab();

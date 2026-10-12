@@ -3,6 +3,23 @@
   window.__chatEmojiRenamerLoaded = true;
 
   const EMOJIS = ['🌻','🪐','🦋','🎨','🚀','🍒','🧩','🌈','🐙','🎧','🍀','⚡','🌙','🐝','🎲','🍓','🛸','🌊','🔥','💎','🦊','🪁','🌺','🎭','🧠','☀️','🦄','🍉','🎯','🐬'];
+  const TOPICS = [
+    {emoji:'💻', words:/\b(?:code|coding|programming|python|javascript|typescript|react|bug|debug|api|software|developer|github)\b/i},
+    {emoji:'✍️', words:/\b(?:write|writing|essay|story|novel|poem|grammar|edit|draft|article|blog)\b/i},
+    {emoji:'🍳', words:/\b(?:cook|cooking|recipe|bake|baking|meal|dinner|lunch|breakfast|ingredient|food)\b/i},
+    {emoji:'✈️', words:/\b(?:travel|trip|flight|hotel|vacation|holiday|itinerary|destination|tourism)\b/i},
+    {emoji:'💰', words:/\b(?:budget|finance|invest|stock|money|tax|expense|salary|saving|debt)\b/i},
+    {emoji:'🩺', words:/\b(?:health|medical|doctor|symptom|medicine|treatment|disease|patient|therapy)\b/i},
+    {emoji:'🔬', words:/\b(?:science|research|experiment|biology|chemistry|physics|laboratory|study)\b/i},
+    {emoji:'📐', words:/\b(?:math|mathematics|algebra|geometry|calculus|equation|statistics)\b/i},
+    {emoji:'🎨', words:/\b(?:art|design|illustration|drawing|painting|color|palette|logo|poster|image)\b/i},
+    {emoji:'🎵', words:/\b(?:music|song|audio|guitar|piano|melody|lyrics|playlist|singing)\b/i},
+    {emoji:'🏋️', words:/\b(?:fitness|workout|exercise|gym|training|running|yoga|muscle)\b/i},
+    {emoji:'🎮', words:/\b(?:game|gaming|video game|minecraft|rpg|level|player|console)\b/i},
+    {emoji:'🌍', words:/\b(?:language|translate|translation|spanish|french|german|japanese|english|vocabulary)\b/i},
+    {emoji:'📋', words:/\b(?:project|plan|planning|meeting|task|schedule|workflow|productivity)\b/i},
+    {emoji:'💬', words:/\b(?:relationship|friend|family|conversation|message|communicate|social)\b/i}
+  ];
   const CHAT_LINK = 'a[href*="/c/"]';
   const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
   const processed = new Set();
@@ -13,7 +30,7 @@
   let scanPending = false;
   let picking = false;
   let scanTimer;
-  let automatic = false;
+  let automaticMode = null;
   let accessToken = null;
 
   function chatId(link) {
@@ -27,8 +44,22 @@
     return (link.innerText || link.textContent || link.getAttribute('aria-label') || link.getAttribute('title') || '').trim();
   }
 
-  function hasEmojiPrefix(title) {
-    return EMOJIS.some(emoji => title.startsWith(`${emoji} `));
+  function withoutLeadingEmoji(title) {
+    const graphemes = new Intl.Segmenter(undefined, {granularity:'grapheme'}).segment(title);
+    let end = 0;
+    let found = false;
+    for (const {segment, index} of graphemes) {
+      if (/[\p{Extended_Pictographic}\p{Regional_Indicator}\u20e3]/u.test(segment)) {
+        found = true;
+        end = index + segment.length;
+      } else if (found && /^\s+$/u.test(segment)) {
+        end = index + segment.length;
+      } else {
+        break;
+      }
+    }
+    const rest = title.slice(end).trimStart();
+    return found ? rest : null;
   }
 
   function randomEmoji() {
@@ -64,6 +95,35 @@
     return accessToken;
   }
 
+  async function conversationText(id) {
+    try {
+      const token = await getAccessToken();
+      const response = await fetch(`/backend-api/conversation/${encodeURIComponent(id)}`, {
+        credentials:'include', headers:{Authorization:`Bearer ${token}`}
+      });
+      if (!response.ok) return '';
+      const data = await response.json();
+      const nodes = Object.values(data.mapping || {});
+      const messages = nodes.map(node => node.message).filter(message => message?.author?.role === 'user');
+      const selected = [...messages.slice(0, 3), ...messages.slice(-2)];
+      return selected.flatMap(message => message.content?.parts || [])
+        .map(part => typeof part === 'string' ? part : (typeof part?.text === 'string' ? part.text : ''))
+        .filter(Boolean).join(' ').slice(0, 5000);
+    } catch { return ''; }
+  }
+
+  async function relevantEmoji(id, title) {
+    const body = await conversationText(id);
+    let best = null;
+    let highest = 0;
+    for (const topic of TOPICS) {
+      const matches = text => [...text.matchAll(new RegExp(topic.words.source, 'gi'))].length;
+      const score = matches(title) * 4 + Math.min(matches(body), 4);
+      if (score > highest) { best = topic.emoji; highest = score; }
+    }
+    return best || randomEmoji();
+  }
+
   async function saveTitle(id, title) {
     for (let attempt = 0; attempt < 2; attempt++) {
       const token = await getAccessToken();
@@ -91,29 +151,25 @@
     }
   }
 
-  async function rename(link) {
+  async function rename(link, mode = 'add') {
     const id = chatId(link);
-    const oldTitle = titleOf(link);
-    if (!id || !oldTitle || hasEmojiPrefix(oldTitle) || processed.has(id)) return false;
-    const prior = (await chrome.storage.local.get(`renamed_${id}`))[`renamed_${id}`];
-    if (prior) {
-      processed.add(id);
-      if (typeof prior === 'string') { savedTitles.set(id, prior); showTitle(id, oldTitle, prior); }
-      return false;
-    }
+    if (!id) return false;
     while (busy) await sleep(80);
     busy = true;
     try {
-      const newTitle = `${randomEmoji()} ${oldTitle}`;
+      const oldTitle = titleOf(linkById(id) || link);
+      const key = `${mode}:${id}`;
+      const remainder = withoutLeadingEmoji(oldTitle);
+      if (!oldTitle || processed.has(key) || (mode === 'add' && remainder !== null) || (mode === 'remove' && !remainder)) return false;
+      const newTitle = mode === 'remove' ? remainder : `${await relevantEmoji(id, oldTitle)} ${oldTitle}`;
       await saveTitle(id, newTitle);
-      processed.add(id);
+      processed.add(key);
       savedTitles.set(id, newTitle);
-      await chrome.storage.local.set({ [`renamed_${id}`]: newTitle });
       showTitle(id, oldTitle, newTitle);
       return true;
     } catch (error) {
-      failed.add(id);
-      notify(`Could not rename: ${error.message}`);
+      failed.add(`${mode}:${id}`);
+      notify(`Could not update title: ${error.message}`);
       return false;
     } finally {
       busy = false;
@@ -121,25 +177,22 @@
   }
 
   async function scan() {
-    if (!automatic || picking) return;
+    if (!automaticMode || picking) return;
     if (scanRunning) { scanPending = true; return; }
     scanRunning = true;
     try {
+      const mode = automaticMode;
       const links = [...document.querySelectorAll(CHAT_LINK)].filter(link => link.closest('nav,aside,[role="navigation"],#history'));
       for (const link of links) {
-        if (!automatic || picking) break;
+        if (automaticMode !== mode || picking) break;
         const id = chatId(link);
+        if (!id) continue;
         const savedTitle = savedTitles.get(id);
         if (savedTitle && titleOf(link) !== savedTitle) showTitle(id, titleOf(link), savedTitle);
-        if (!id || hasEmojiPrefix(titleOf(link)) || processed.has(id) || failed.has(id)) continue;
-        const key = `renamed_${id}`;
-        const prior = (await chrome.storage.local.get(key))[key];
-        if (prior) {
-          processed.add(id);
-          if (typeof prior === 'string') { savedTitles.set(id, prior); showTitle(id, titleOf(link), prior); }
-          continue;
-        }
-        await rename(link);
+        const remainder = withoutLeadingEmoji(titleOf(link));
+        if ((mode === 'add' && remainder !== null) || (mode === 'remove' && !remainder)) continue;
+        if (processed.has(`${mode}:${id}`) || failed.has(`${mode}:${id}`)) continue;
+        await rename(link, mode);
         await sleep(1200);
       }
     } finally {
@@ -151,6 +204,20 @@
   function scheduleScan() {
     clearTimeout(scanTimer);
     scanTimer = setTimeout(scan, 700);
+  }
+
+  function applySettings({automatic, automaticRemove}) {
+    const nextMode = automaticRemove ? 'remove' : (automatic ? 'add' : null);
+    if (nextMode !== automaticMode) {
+      automaticMode = nextMode;
+      processed.clear();
+      failed.clear();
+    }
+    scheduleScan();
+  }
+
+  function readSettings() {
+    chrome.storage.local.get({automatic:false, automaticRemove:false}, applySettings);
   }
 
   function stopPicking() {
@@ -172,26 +239,30 @@
     event.stopImmediatePropagation();
     picking = false;
     document.documentElement.style.removeProperty('cursor');
-    failed.delete(chatId(link));
-    const success = await rename(link);
+    failed.delete(`add:${chatId(link)}`);
+    const success = await rename(link, 'add');
     if (success) notify('Emoji added to chat title.');
-    else if (hasEmojiPrefix(titleOf(link))) notify('This chat already has an emoji.');
+    else if (withoutLeadingEmoji(titleOf(link)) !== null) notify('This chat already has an emoji.');
     scheduleScan();
   }, true);
 
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     if (message.type === 'START_PICKING') {
       picking = true;
+      if (automaticMode === 'remove') {
+        automaticMode = null;
+        chrome.storage.local.set({automaticRemove:false});
+      }
       document.documentElement.style.setProperty('cursor', 'crosshair', 'important');
       notify('Click a chat in the sidebar. Press Esc to cancel.');
       sendResponse({ ok: true });
     }
     if (message.type === 'AUTOMATIC_CHANGED') {
-      chrome.storage.local.get({automatic:false}, data => { automatic = data.automatic; scheduleScan(); });
+      readSettings();
       sendResponse({ ok: true });
     }
   });
 
-  chrome.storage.local.get({automatic:false}, data => { automatic = data.automatic; scheduleScan(); });
+  readSettings();
   new MutationObserver(scheduleScan).observe(document.documentElement, {childList:true,subtree:true});
 })();

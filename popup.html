@@ -13,13 +13,18 @@
     <section class="card manual">
       <span class="number">01 / MANUAL</span>
       <h2>Pick one chat</h2>
-      <p>Click the button, then click a chat in the ChatGPT sidebar.</p>
+      <p>Click the button, then click a chat in the ChatGPT sidebar to add a relevant emoji.</p>
       <button id="pick" type="button">Select a chat →</button>
     </section>
     <section class="card auto">
       <span class="number">02 / AUTOMATIC</span>
-      <div class="row"><h2>Rename visible chats</h2><label class="switch"><input id="automatic" type="checkbox" aria-label="Automatically rename visible chats"><span></span></label></div>
-      <p>When on, adds one random emoji to unprocessed chats as they appear in the sidebar.</p>
+      <div class="row"><h2>Add relevant emoji</h2><label class="switch"><input id="automatic" type="checkbox" aria-label="Automatically add relevant emoji to visible chats"><span></span></label></div>
+      <p>Uses each chat's title and conversation text. Falls back to a random emoji when no topic matches.</p>
+    </section>
+    <section class="card remove">
+      <span class="number">03 / AUTOMATIC</span>
+      <div class="row"><h2>Remove leading emoji</h2><label class="switch"><input id="automatic-remove" type="checkbox" aria-label="Automatically remove leading emoji from visible chats"><span></span></label></div>
+      <p>Removes emoji at the start of visible chat titles. Keeps the rest of each title.</p>
     </section>
     <p id="status" role="status"></p>
     <footer>Works on chatgpt.com · Reload the page after installing</footer>

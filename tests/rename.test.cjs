@@ -7,81 +7,92 @@ const { JSDOM } = require('jsdom');
 const source = fs.readFileSync(path.join(__dirname, '..', 'content.js'), 'utf8');
 const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
 
-function fixture(automatic, patchStatus = 200, chatPath = '/c/one') {
-  const dom = new JSDOM(`<!doctype html><html><body><nav id="history">
-    <div class="row"><a href="${chatPath}" aria-label="First chat">First chat</a></div>
-  </nav></body></html>`, {url:'https://chatgpt.com/', runScripts:'outside-only'});
-  const { window } = dom;
-  const saved = {automatic};
+function fixture({automatic = false, automaticRemove = false, title = 'First chat', content = 'Please debug this Python code.', patchStatus = 200, chatPath = '/c/one'} = {}) {
+  const dom = new JSDOM(`<!doctype html><html><body><nav id="history"><div class="row"><a href="${chatPath}"></a></div></nav></body></html>`, {
+    url:'https://chatgpt.com/', runScripts:'outside-only'
+  });
+  const {window} = dom;
+  const saved = {automatic, automaticRemove, renamed_one:'legacy completion record'};
   const requests = [];
   let listener;
   window.chrome = {
-    storage: {local: {
-      get: (keys, callback) => {
+    storage:{local:{
+      get:(keys, callback) => {
         const result = typeof keys === 'string' ? {[keys]:saved[keys]} : {...keys, ...saved};
-        if (callback) { callback(result); return; }
+        if (callback) {callback(result); return;}
         return Promise.resolve(result);
       },
-      set: values => { Object.assign(saved, values); return Promise.resolve(); }
+      set:values => {Object.assign(saved, values); return Promise.resolve();}
     }},
-    runtime: {onMessage:{addListener:fn => {listener = fn;}}}
+    runtime:{onMessage:{addListener:fn => {listener = fn;}}}
   };
   const link = window.document.querySelector('#history a');
+  link.textContent = title;
+  link.setAttribute('aria-label', title);
   window.fetch = async (url, options = {}) => {
     requests.push({url, options});
     if (url === '/api/auth/session') return {ok:true, status:200, json:async () => ({accessToken:'test-token'})};
+    if (url === '/backend-api/conversation/one' && !options.method) {
+      return {ok:true, status:200, json:async () => ({mapping:{a:{message:{author:{role:'user'},content:{parts:[content]}}}}})};
+    }
     if (url === '/backend-api/conversation/one' && options.method === 'PATCH') {
       return {ok:patchStatus === 200, status:patchStatus};
     }
     throw Error(`Unexpected request: ${url}`);
   };
   window.eval(source);
-  return {dom, window, link, saved, requests, message: type => listener({type}, null, () => {})};
+  return {dom, window, link, saved, requests, message:type => listener({type}, null, () => {})};
 }
 
-test('manual mode renames only the clicked chat', async () => {
-  const app = fixture(false);
+test('manual mode chooses an emoji from conversation text', async () => {
+  const app = fixture();
   try {
     app.message('START_PICKING');
     app.link.dispatchEvent(new app.window.MouseEvent('click', {bubbles:true, cancelable:true}));
     await pause(300);
-    assert.match(app.link.getAttribute('aria-label'), /^\S+ First chat$/u);
-    assert.equal(app.link.textContent, app.link.getAttribute('aria-label'));
-    assert.equal(app.saved.renamed_one, app.link.getAttribute('aria-label'));
-    assert.equal(app.requests[1].url, '/backend-api/conversation/one');
-    assert.deepEqual(JSON.parse(app.requests[1].options.body), {title:app.link.getAttribute('aria-label')});
-    assert.equal(app.requests[1].options.headers.Authorization, 'Bearer test-token');
-  } finally { app.dom.window.close(); }
+    assert.equal(app.link.textContent, '💻 First chat');
+    assert.equal(app.link.getAttribute('aria-label'), app.link.textContent);
+    const patch = app.requests.find(request => request.options.method === 'PATCH');
+    assert.deepEqual(JSON.parse(patch.options.body), {title:'💻 First chat'});
+    assert.equal(patch.options.headers.Authorization, 'Bearer test-token');
+  } finally {app.dom.window.close();}
 });
 
-test('automatic mode renames without a conversation menu', async () => {
-  const app = fixture(true);
+test('automatic add uses a relevant title keyword', async () => {
+  const app = fixture({automatic:true, title:'Dinner recipe', content:'Boil the pasta.'});
   try {
     await pause(1050);
-    assert.match(app.link.getAttribute('aria-label'), /^\S+ First chat$/u);
-    assert.equal(app.saved.renamed_one, app.link.getAttribute('aria-label'));
-  } finally { app.dom.window.close(); }
+    assert.equal(app.link.textContent, '🍳 Dinner recipe');
+  } finally {app.dom.window.close();}
+});
+
+test('automatic remove strips only leading emoji and preserves title text', async () => {
+  const app = fixture({automaticRemove:true, title:'🐙 🎨 Budget 2026'});
+  try {
+    await pause(1050);
+    assert.equal(app.link.textContent, 'Budget 2026');
+    assert.deepEqual(JSON.parse(app.requests.find(request => request.options.method === 'PATCH').options.body), {title:'Budget 2026'});
+    assert.equal(app.requests.filter(request => request.url === '/backend-api/conversation/one' && !request.options.method).length, 0);
+  } finally {app.dom.window.close();}
 });
 
 test('manual mode recognizes a chat inside a project URL', async () => {
-  const app = fixture(false, 200, '/g/project-id/c/one');
+  const app = fixture({chatPath:'/g/project-id/c/one'});
   try {
     app.message('START_PICKING');
     app.link.dispatchEvent(new app.window.MouseEvent('click', {bubbles:true, cancelable:true}));
     await pause(300);
-    assert.equal(app.requests[1].url, '/backend-api/conversation/one');
-    assert.match(app.link.textContent, /^\S+ First chat$/u);
-  } finally { app.dom.window.close(); }
+    assert.equal(app.requests.find(request => request.options.method === 'PATCH').url, '/backend-api/conversation/one');
+  } finally {app.dom.window.close();}
 });
 
-test('failed server update leaves the title and completion state unchanged', async () => {
-  const app = fixture(false, 403);
+test('failed server update leaves the title unchanged', async () => {
+  const app = fixture({patchStatus:403});
   try {
     app.message('START_PICKING');
     app.link.dispatchEvent(new app.window.MouseEvent('click', {bubbles:true, cancelable:true}));
     await pause(300);
-    assert.equal(app.link.getAttribute('aria-label'), 'First chat');
-    assert.equal(app.saved.renamed_one, undefined);
+    assert.equal(app.link.textContent, 'First chat');
     assert.match(app.window.document.body.textContent, /HTTP 403/);
-  } finally { app.dom.window.close(); }
+  } finally {app.dom.window.close();}
 });

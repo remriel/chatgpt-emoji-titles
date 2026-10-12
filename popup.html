@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ChatGPT Emoji Titles</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <main>
+    <div class="eyebrow">CHATGPT TOOL / 01</div>
+    <h1>Give chats<br><em>character.</em></h1>
+    <section class="card manual">
+      <span class="number">01 / MANUAL</span>
+      <h2>Pick one chat</h2>
+      <p>Click the button, then click a chat in the ChatGPT sidebar.</p>
+      <button id="pick" type="button">Select a chat →</button>
+    </section>
+    <section class="card auto">
+      <span class="number">02 / AUTOMATIC</span>
+      <div class="row"><h2>Rename visible chats</h2><label class="switch"><input id="automatic" type="checkbox" aria-label="Automatically rename visible chats"><span></span></label></div>
+      <p>When on, adds one random emoji to unprocessed chats as they appear in the sidebar.</p>
+    </section>
+    <p id="status" role="status"></p>
+    <footer>Works on chatgpt.com · Reload the page after installing</footer>
+  </main>
+  <script src="popup.js"></script>
+</body>
+</html>

@@ -15,4 +15,10 @@ The extension remembers chats it has renamed in local extension storage. It runs
 4. Choose **Load unpacked** and select this folder.
 5. Reload an open ChatGPT tab.
 
-ChatGPT can change its page structure. If the extension reports that it cannot find a chat menu, rename option, or title editor, the selectors in `content.js` may need updating. The extension pauses retries for that chat until the page is reloaded.
+If you installed an earlier unpacked version, replace its files with this version, click the extension's **Reload** button on the extensions page, and reload ChatGPT. For a ZIP installation, extract the new ZIP and point **Load unpacked** at the extracted folder.
+
+ChatGPT can change its page structure. Version 1.1 uses the conversation options control and inline **Chat title** editor documented in a [May 2026 live DOM inspection](https://github.com/Dworrall21/chatgpt-bridge/blob/main/dom-selectors.md). If ChatGPT changes these controls, the selectors in `content.js` may need updating. The extension pauses retries for a failed chat until the page is reloaded.
+
+## Development checks
+
+Run `npm install` and `npm test` to execute the manual and automatic rename regression tests.

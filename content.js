@@ -8,6 +8,8 @@
   const processed = new Set();
   const failed = new Set();
   let busy = false;
+  let scanRunning = false;
+  let scanPending = false;
   let picking = false;
   let scanTimer;
   let automatic = false;
@@ -17,7 +19,7 @@
   }
 
   function titleOf(link) {
-    return (link.getAttribute('title') || link.innerText || link.textContent || '').trim();
+    return (link.getAttribute('aria-label') || link.getAttribute('title') || link.innerText || link.textContent || '').trim();
   }
 
   function hasEmojiPrefix(title) {
@@ -43,50 +45,65 @@
     note._timer = setTimeout(() => note.remove(), 4500);
   }
 
+  async function waitFor(find, timeout = 2500) {
+    const end = Date.now() + timeout;
+    do {
+      const result = find();
+      if (result) return result;
+      await sleep(60);
+    } while (Date.now() < end);
+    return null;
+  }
+
+  function optionsButton(link, title) {
+    const buttons = [...document.querySelectorAll('button[data-testid^="history-item-"][data-testid$="-options"],button[aria-label^="Open conversation options for "]')];
+    const named = buttons.find(button => button.getAttribute('aria-label')?.endsWith(title));
+    if (named) return named;
+    let row = link.parentElement;
+    for (let depth = 0; row && depth < 5; depth++, row = row.parentElement) {
+      const matches = [...row.querySelectorAll('button[data-testid$="-options"],button[aria-label^="Open conversation options for "]')];
+      if (matches.length === 1 && row.querySelectorAll(CHAT_LINK).length === 1) return matches[0];
+    }
+    return null;
+  }
+
   function findRenameMenuItem() {
-    return [...document.querySelectorAll('[role="menuitem"],button')]
-      .find(el => /^rename(?: chat)?$/i.test((el.innerText || el.textContent || '').trim()) && el.getClientRects().length);
+    return [...document.querySelectorAll('[role="menuitem"]')]
+      .find(el => /^rename(?:\b|$)/i.test((el.innerText || el.textContent || '').trim()) && el.getClientRects().length);
+  }
+
+  function linkById(id) {
+    return [...document.querySelectorAll(CHAT_LINK)].find(link => chatId(link) === id);
   }
 
   async function rename(link) {
     const id = chatId(link);
     const oldTitle = titleOf(link);
     if (!id || !oldTitle || hasEmojiPrefix(oldTitle) || processed.has(id)) return false;
+    while (busy) await sleep(80);
     busy = true;
     try {
-      const row = link.closest('li,[data-testid],div.group') || link.parentElement;
-      row?.dispatchEvent(new MouseEvent('mouseenter', {bubbles:true}));
-      const buttons = [...(row?.querySelectorAll('button') || [])];
-      const menuButton = buttons.find(el => /more|option|menu|actions/i.test(`${el.getAttribute('aria-label') || ''} ${el.getAttribute('title') || ''}`)) || buttons.at(-1);
+      link.dispatchEvent(new MouseEvent('mouseover', {bubbles:true}));
+      const menuButton = await waitFor(() => optionsButton(link, oldTitle));
       if (!menuButton) throw Error('Chat menu not found');
       menuButton.click();
-      await sleep(160);
-      const renameItem = findRenameMenuItem();
+      const renameItem = await waitFor(findRenameMenuItem);
       if (!renameItem) throw Error('Rename option not found');
       renameItem.click();
-      await sleep(160);
-      const input = [...document.querySelectorAll('input,textarea,[contenteditable="true"]')]
-        .find(el => el.getClientRects().length && (el.value === oldTitle || el.textContent?.trim() === oldTitle))
-        || [...document.querySelectorAll('input,textarea')].find(el => el.getClientRects().length && /rename|chat name|title/i.test(`${el.placeholder || ''} ${el.getAttribute('aria-label') || ''}`));
+      const input = await waitFor(() => document.querySelector('input[aria-label="Chat title"]'));
       if (!input) throw Error('Title editor not found');
       const newTitle = `${randomEmoji()} ${oldTitle}`;
       input.focus();
-      if (input.isContentEditable) {
-        input.textContent = newTitle;
-      } else {
-        const setter = Object.getOwnPropertyDescriptor(input instanceof HTMLTextAreaElement ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype, 'value').set;
-        setter.call(input, newTitle);
-      }
+      const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set;
+      setter.call(input, newTitle);
       input.dispatchEvent(new InputEvent('input', {bubbles:true, data:newTitle, inputType:'insertText'}));
       input.dispatchEvent(new Event('change', {bubbles:true}));
-      input.dispatchEvent(new KeyboardEvent('keydown', {key:'Enter',code:'Enter',bubbles:true}));
-      const form = input.closest('form');
-      const save = [...(form?.querySelectorAll('button') || [])].find(el => /save|confirm/i.test(`${el.getAttribute('aria-label') || ''} ${el.textContent || ''}`));
-      if (save) save.click();
-      else if (form?.requestSubmit) form.requestSubmit();
-      await sleep(350);
-      const updated = [...document.querySelectorAll(CHAT_LINK)].find(candidate => chatId(candidate) === id);
-      if (!updated || !titleOf(updated).startsWith(newTitle)) throw Error('Title change was not confirmed');
+      input.dispatchEvent(new KeyboardEvent('keydown', {key:'Enter',code:'Enter',bubbles:true,cancelable:true}));
+      const updated = await waitFor(() => {
+        const candidate = linkById(id);
+        return candidate && titleOf(candidate) === newTitle ? candidate : null;
+      }, 3500);
+      if (!updated) throw Error('Title change was not confirmed');
       processed.add(id);
       await chrome.storage.local.set({ [`renamed_${id}`]: true });
       return true;
@@ -100,16 +117,23 @@
   }
 
   async function scan() {
-    if (!automatic || picking || busy) return;
-    const links = [...document.querySelectorAll(CHAT_LINK)].filter(link => link.closest('nav,aside,[role="navigation"]'));
-    for (const link of links) {
-      if (!automatic || picking) break;
-      const id = chatId(link);
-      if (!id || hasEmojiPrefix(titleOf(link)) || processed.has(id) || failed.has(id)) continue;
-      const key = `renamed_${id}`;
-      if ((await chrome.storage.local.get(key))[key]) { processed.add(id); continue; }
-      await rename(link);
-      await sleep(1500);
+    if (!automatic || picking) return;
+    if (scanRunning) { scanPending = true; return; }
+    scanRunning = true;
+    try {
+      const links = [...document.querySelectorAll(CHAT_LINK)].filter(link => link.closest('nav,aside,[role="navigation"],#history'));
+      for (const link of links) {
+        if (!automatic || picking) break;
+        const id = chatId(link);
+        if (!id || hasEmojiPrefix(titleOf(link)) || processed.has(id) || failed.has(id)) continue;
+        const key = `renamed_${id}`;
+        if ((await chrome.storage.local.get(key))[key]) { processed.add(id); continue; }
+        await rename(link);
+        await sleep(1200);
+      }
+    } finally {
+      scanRunning = false;
+      if (scanPending) { scanPending = false; scheduleScan(); }
     }
   }
 
@@ -132,11 +156,12 @@
   document.addEventListener('click', async event => {
     if (!picking) return;
     const link = event.target.closest?.(CHAT_LINK);
-    if (!link || !link.closest('nav,aside,[role="navigation"]')) return;
+    if (!link || !link.closest('nav,aside,[role="navigation"],#history')) return;
     event.preventDefault();
     event.stopImmediatePropagation();
     picking = false;
     document.documentElement.style.removeProperty('cursor');
+    failed.delete(chatId(link));
     const success = await rename(link);
     if (success) notify('Emoji added to chat title.');
     else if (hasEmojiPrefix(titleOf(link))) notify('This chat already has an emoji.');

@@ -7,15 +7,13 @@ const { JSDOM } = require('jsdom');
 const source = fs.readFileSync(path.join(__dirname, '..', 'content.js'), 'utf8');
 const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
 
-function fixture(automatic) {
+function fixture(automatic, patchStatus = 200, chatPath = '/c/one') {
   const dom = new JSDOM(`<!doctype html><html><body><nav id="history">
-    <div class="row"><a href="/c/one" aria-label="First chat">First chat</a>
-    <button aria-label="Unrelated action"></button>
-    <button data-testid="history-item-0-options" aria-label="Open conversation options for First chat"></button></div>
+    <div class="row"><a href="${chatPath}" aria-label="First chat">First chat</a></div>
   </nav></body></html>`, {url:'https://chatgpt.com/', runScripts:'outside-only'});
   const { window } = dom;
-  window.HTMLElement.prototype.getClientRects = () => ({length:1});
   const saved = {automatic};
+  const requests = [];
   let listener;
   window.chrome = {
     storage: {local: {
@@ -28,29 +26,17 @@ function fixture(automatic) {
     }},
     runtime: {onMessage:{addListener:fn => {listener = fn;}}}
   };
-  const link = window.document.querySelector('a[href="/c/one"]');
-  const menuButton = window.document.querySelector('[data-testid="history-item-0-options"]');
-  menuButton.addEventListener('click', () => {
-    const item = window.document.createElement('div');
-    item.setAttribute('role', 'menuitem');
-    item.textContent = 'Rename';
-    window.document.body.append(item);
-    item.addEventListener('click', () => {
-      item.remove();
-      const input = window.document.createElement('input');
-      input.setAttribute('aria-label', 'Chat title');
-      input.value = link.getAttribute('aria-label');
-      window.document.querySelector('.row').append(input);
-      input.addEventListener('keydown', event => {
-        if (event.key !== 'Enter') return;
-        link.setAttribute('aria-label', input.value);
-        link.textContent = input.value;
-        input.remove();
-      });
-    });
-  });
+  const link = window.document.querySelector('#history a');
+  window.fetch = async (url, options = {}) => {
+    requests.push({url, options});
+    if (url === '/api/auth/session') return {ok:true, status:200, json:async () => ({accessToken:'test-token'})};
+    if (url === '/backend-api/conversation/one' && options.method === 'PATCH') {
+      return {ok:patchStatus === 200, status:patchStatus};
+    }
+    throw Error(`Unexpected request: ${url}`);
+  };
   window.eval(source);
-  return {dom, window, link, saved, message: type => listener({type}, null, () => {})};
+  return {dom, window, link, saved, requests, message: type => listener({type}, null, () => {})};
 }
 
 test('manual mode renames only the clicked chat', async () => {
@@ -60,15 +46,42 @@ test('manual mode renames only the clicked chat', async () => {
     app.link.dispatchEvent(new app.window.MouseEvent('click', {bubbles:true, cancelable:true}));
     await pause(300);
     assert.match(app.link.getAttribute('aria-label'), /^\S+ First chat$/u);
-    assert.equal(app.saved.renamed_one, true);
+    assert.equal(app.link.textContent, app.link.getAttribute('aria-label'));
+    assert.equal(app.saved.renamed_one, app.link.getAttribute('aria-label'));
+    assert.equal(app.requests[1].url, '/backend-api/conversation/one');
+    assert.deepEqual(JSON.parse(app.requests[1].options.body), {title:app.link.getAttribute('aria-label')});
+    assert.equal(app.requests[1].options.headers.Authorization, 'Bearer test-token');
   } finally { app.dom.window.close(); }
 });
 
-test('automatic mode uses the conversation options button', async () => {
+test('automatic mode renames without a conversation menu', async () => {
   const app = fixture(true);
   try {
     await pause(1050);
     assert.match(app.link.getAttribute('aria-label'), /^\S+ First chat$/u);
-    assert.equal(app.saved.renamed_one, true);
+    assert.equal(app.saved.renamed_one, app.link.getAttribute('aria-label'));
+  } finally { app.dom.window.close(); }
+});
+
+test('manual mode recognizes a chat inside a project URL', async () => {
+  const app = fixture(false, 200, '/g/project-id/c/one');
+  try {
+    app.message('START_PICKING');
+    app.link.dispatchEvent(new app.window.MouseEvent('click', {bubbles:true, cancelable:true}));
+    await pause(300);
+    assert.equal(app.requests[1].url, '/backend-api/conversation/one');
+    assert.match(app.link.textContent, /^\S+ First chat$/u);
+  } finally { app.dom.window.close(); }
+});
+
+test('failed server update leaves the title and completion state unchanged', async () => {
+  const app = fixture(false, 403);
+  try {
+    app.message('START_PICKING');
+    app.link.dispatchEvent(new app.window.MouseEvent('click', {bubbles:true, cancelable:true}));
+    await pause(300);
+    assert.equal(app.link.getAttribute('aria-label'), 'First chat');
+    assert.equal(app.saved.renamed_one, undefined);
+    assert.match(app.window.document.body.textContent, /HTTP 403/);
   } finally { app.dom.window.close(); }
 });

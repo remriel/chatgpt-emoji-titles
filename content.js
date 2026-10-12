@@ -3,9 +3,10 @@
   window.__chatEmojiRenamerLoaded = true;
 
   const EMOJIS = ['🌻','🪐','🦋','🎨','🚀','🍒','🧩','🌈','🐙','🎧','🍀','⚡','🌙','🐝','🎲','🍓','🛸','🌊','🔥','💎','🦊','🪁','🌺','🎭','🧠','☀️','🦄','🍉','🎯','🐬'];
-  const CHAT_LINK = 'a[href^="/c/"], a[href*="chatgpt.com/c/"]';
+  const CHAT_LINK = 'a[href*="/c/"]';
   const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
   const processed = new Set();
+  const savedTitles = new Map();
   const failed = new Set();
   let busy = false;
   let scanRunning = false;
@@ -13,13 +14,17 @@
   let picking = false;
   let scanTimer;
   let automatic = false;
+  let accessToken = null;
 
   function chatId(link) {
-    try { return new URL(link.href).pathname.match(/^\/c\/([^/]+)/)?.[1]; } catch { return null; }
+    try {
+      const url = new URL(link.href);
+      return url.origin === location.origin ? url.pathname.match(/(?:^|\/)c\/([^/]+)/)?.[1] : null;
+    } catch { return null; }
   }
 
   function titleOf(link) {
-    return (link.getAttribute('aria-label') || link.getAttribute('title') || link.innerText || link.textContent || '').trim();
+    return (link.innerText || link.textContent || link.getAttribute('aria-label') || link.getAttribute('title') || '').trim();
   }
 
   function hasEmojiPrefix(title) {
@@ -45,67 +50,66 @@
     note._timer = setTimeout(() => note.remove(), 4500);
   }
 
-  async function waitFor(find, timeout = 2500) {
-    const end = Date.now() + timeout;
-    do {
-      const result = find();
-      if (result) return result;
-      await sleep(60);
-    } while (Date.now() < end);
-    return null;
-  }
-
-  function optionsButton(link, title) {
-    const buttons = [...document.querySelectorAll('button[data-testid^="history-item-"][data-testid$="-options"],button[aria-label^="Open conversation options for "]')];
-    const named = buttons.find(button => button.getAttribute('aria-label')?.endsWith(title));
-    if (named) return named;
-    let row = link.parentElement;
-    for (let depth = 0; row && depth < 5; depth++, row = row.parentElement) {
-      const matches = [...row.querySelectorAll('button[data-testid$="-options"],button[aria-label^="Open conversation options for "]')];
-      if (matches.length === 1 && row.querySelectorAll(CHAT_LINK).length === 1) return matches[0];
-    }
-    return null;
-  }
-
-  function findRenameMenuItem() {
-    return [...document.querySelectorAll('[role="menuitem"]')]
-      .find(el => /^rename(?:\b|$)/i.test((el.innerText || el.textContent || '').trim()) && el.getClientRects().length);
-  }
-
   function linkById(id) {
     return [...document.querySelectorAll(CHAT_LINK)].find(link => chatId(link) === id);
+  }
+
+  async function getAccessToken() {
+    if (accessToken) return accessToken;
+    const response = await fetch('/api/auth/session', {credentials:'include', cache:'no-store'});
+    if (!response.ok) throw Error(`Session request failed (HTTP ${response.status})`);
+    const session = await response.json();
+    if (!session.accessToken) throw Error('Sign in to ChatGPT, then reload the page');
+    accessToken = session.accessToken;
+    return accessToken;
+  }
+
+  async function saveTitle(id, title) {
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const token = await getAccessToken();
+      const response = await fetch(`/backend-api/conversation/${encodeURIComponent(id)}`, {
+        method:'PATCH',
+        credentials:'include',
+        headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json'},
+        body:JSON.stringify({title})
+      });
+      if (response.status === 401 && attempt === 0) { accessToken = null; continue; }
+      if (!response.ok) throw Error(`ChatGPT rejected title update (HTTP ${response.status})`);
+      return;
+    }
+  }
+
+  function showTitle(id, oldTitle, newTitle) {
+    const link = linkById(id);
+    if (!link) return;
+    if (link.getAttribute('aria-label') === oldTitle) link.setAttribute('aria-label', newTitle);
+    if (link.getAttribute('title') === oldTitle) link.setAttribute('title', newTitle);
+    const walker = document.createTreeWalker(link, NodeFilter.SHOW_TEXT);
+    while (walker.nextNode()) {
+      const node = walker.currentNode;
+      if (node.nodeValue.trim() === oldTitle) { node.nodeValue = node.nodeValue.replace(oldTitle, newTitle); break; }
+    }
   }
 
   async function rename(link) {
     const id = chatId(link);
     const oldTitle = titleOf(link);
     if (!id || !oldTitle || hasEmojiPrefix(oldTitle) || processed.has(id)) return false;
+    const prior = (await chrome.storage.local.get(`renamed_${id}`))[`renamed_${id}`];
+    if (prior) {
+      processed.add(id);
+      if (typeof prior === 'string') { savedTitles.set(id, prior); showTitle(id, oldTitle, prior); }
+      return false;
+    }
     while (busy) await sleep(80);
     busy = true;
     try {
-      link.dispatchEvent(new MouseEvent('mouseover', {bubbles:true}));
-      const menuButton = await waitFor(() => optionsButton(link, oldTitle));
-      if (!menuButton) throw Error('Chat menu not found');
-      menuButton.click();
-      const renameItem = await waitFor(findRenameMenuItem);
-      if (!renameItem) throw Error('Rename option not found');
-      renameItem.click();
-      const input = await waitFor(() => document.querySelector('input[aria-label="Chat title"]'));
-      if (!input) throw Error('Title editor not found');
       const newTitle = `${randomEmoji()} ${oldTitle}`;
-      input.focus();
-      const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set;
-      setter.call(input, newTitle);
-      input.dispatchEvent(new InputEvent('input', {bubbles:true, data:newTitle, inputType:'insertText'}));
-      input.dispatchEvent(new Event('change', {bubbles:true}));
-      input.dispatchEvent(new KeyboardEvent('keydown', {key:'Enter',code:'Enter',bubbles:true,cancelable:true}));
-      const updated = await waitFor(() => {
-        const candidate = linkById(id);
-        return candidate && titleOf(candidate) === newTitle ? candidate : null;
-      }, 3500);
-      if (!updated) throw Error('Title change was not confirmed');
+      await saveTitle(id, newTitle);
       processed.add(id);
-      await chrome.storage.local.set({ [`renamed_${id}`]: true });
+      savedTitles.set(id, newTitle);
+      await chrome.storage.local.set({ [`renamed_${id}`]: newTitle });
+      showTitle(id, oldTitle, newTitle);
       return true;
     } catch (error) {
       failed.add(id);
@@ -125,9 +129,16 @@
       for (const link of links) {
         if (!automatic || picking) break;
         const id = chatId(link);
+        const savedTitle = savedTitles.get(id);
+        if (savedTitle && titleOf(link) !== savedTitle) showTitle(id, titleOf(link), savedTitle);
         if (!id || hasEmojiPrefix(titleOf(link)) || processed.has(id) || failed.has(id)) continue;
         const key = `renamed_${id}`;
-        if ((await chrome.storage.local.get(key))[key]) { processed.add(id); continue; }
+        const prior = (await chrome.storage.local.get(key))[key];
+        if (prior) {
+          processed.add(id);
+          if (typeof prior === 'string') { savedTitles.set(id, prior); showTitle(id, titleOf(link), prior); }
+          continue;
+        }
         await rename(link);
         await sleep(1200);
       }

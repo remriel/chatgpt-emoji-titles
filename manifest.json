@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "ChatGPT Emoji Titles",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Add a random emoji to ChatGPT conversation titles, manually or automatically.",
   "permissions": ["storage", "activeTab"],
   "host_permissions": ["https://chatgpt.com/*"],

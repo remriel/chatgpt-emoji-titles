@@ -15,6 +15,7 @@
 - A chat is stored as completed only after the updated title appears in the sidebar.
 - ChatGPT DOM changes may require selector updates. Failed chats are not retried until page reload.
 - Permission scope is `chatgpt.com` plus extension storage.
+- Private GitHub repository: `https://github.com/remriel/chatgpt-emoji-titles`.
 
 ## Relevant files
 

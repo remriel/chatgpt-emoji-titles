@@ -10,6 +10,7 @@ Deliver a Chrome and Edge extension that prefixes ChatGPT chat titles with rando
 - [x] Implement manual chat selection and automatic visible-chat queue.
 - [x] Add local completion tracking and save confirmation.
 - [x] Check JavaScript syntax.
+- [x] Create and push private GitHub repository.
 - [ ] Verify both modes against a signed-in ChatGPT page.
 
 Progress: **80% toward a verified, publishable result**.
@@ -22,6 +23,7 @@ Extension source is complete and can be loaded unpacked. Browser live verificati
 
 - `node --check content.js` passed.
 - `node --check popup.js` passed.
+- Initial source pushed to private GitHub repository.
 
 ## Blockers
 

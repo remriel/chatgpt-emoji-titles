@@ -21,6 +21,7 @@ Deliver a Chrome and Edge extension that adds topic-relevant emoji or removes le
 - [x] Prevent opposing automatic mode from undoing a manual action.
 - [x] Verify extension functionality against a signed-in ChatGPT page (user confirmed it works).
 - [x] Publish GitHub release v1.4.0 with the ZIP asset.
+- [x] Verify repository visibility is private.
 
 Progress: **100% — verified and released**.
 
@@ -37,6 +38,7 @@ Version 1.4 source is complete, the user confirmed signed-in behavior, and GitHu
 - Available ChatGPT browser session was inspected but is signed out, so it has no chat sidebar to test live.
 - The user confirmed on October 13, 2026 that the extension works perfectly in their browser.
 - GitHub release asset digest matches the local ZIP SHA-256: `e781a4fb6f917afa8c472df29ef7c2f7487996f49afb2c445c62bdda66ac4576`.
+- GitHub repository visibility verified as private after release creation.
 
 ## Blockers
 

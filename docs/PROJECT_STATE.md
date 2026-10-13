@@ -23,7 +23,7 @@
 - Automatic scans are serialized to prevent overlapping title updates.
 - The internal ChatGPT web endpoint may change. Failed chats are not retried until page reload.
 - Permission scope is `chatgpt.com` plus extension storage.
-- GitHub repository: `https://github.com/remriel/chatgpt-emoji-titles`. Its current visibility is public (verified October 13, 2026).
+- Private GitHub repository: `https://github.com/remriel/chatgpt-emoji-titles` (visibility verified October 13, 2026).
 - GitHub release `v1.4.0`: `https://github.com/remriel/chatgpt-emoji-titles/releases/tag/v1.4.0`; ZIP SHA-256 `e781a4fb6f917afa8c472df29ef7c2f7487996f49afb2c445c62bdda66ac4576`.
 
 ## Relevant files

@@ -48,4 +48,4 @@
 
 ## RESUME HERE
 
-Version 1.5 is being prepared for public Chrome and Edge store submissions. The icon, two screenshots, promotional tile, privacy policies, listing copy, and store-only ZIP have been built. Next: run final tests, commit and push, create the public v1.5 release, verify public privacy links and release assets, then leave store dashboard publication to the user.
+Version 1.5.0 is published at `https://github.com/remriel/chatgpt-emoji-titles/releases/tag/v1.5.0` with the runtime-only store ZIP and separate marketing kit ZIP. The public repo contains privacy policies, listing copy, icon, tile, screenshots, and publishing guide. The user plans to submit to Chrome Web Store and Microsoft Edge Add-ons from their own accounts. No required code work remains for the store kit; update this state if a store reviewer identifies a blocking issue.

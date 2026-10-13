@@ -27,14 +27,13 @@ Prepare and market the extension publicly for later Chrome Web Store and Microso
 - [x] Draft Chrome and Edge listing copy, privacy policies, and launch copy.
 - [x] Build a runtime-only store ZIP and separate marketing asset ZIP.
 - [x] Run final tests and package validation.
-- [ ] Push public-facing repository updates and publish v1.5 release assets.
-- [ ] Verify public privacy URLs and release downloads.
+- [x] Push public-facing repository updates and publish v1.5 release assets.
 
-Progress: **85% toward a complete store submission kit**.
+Progress: **100% — store submission kit built and publicly released**.
 
 ## Current state
 
-Version 1.5 adds store icons and public marketing materials. The user will publish on extension stores; no store submission has been made by Codex.
+Version 1.5.0 is published on GitHub with two ZIP assets. The user will publish on extension stores; no store submission has been made by Codex.
 
 ## Tests and verification
 
@@ -48,6 +47,7 @@ Version 1.5 adds store icons and public marketing materials. The user will publi
 - GitHub repository visibility was changed to public at the user's request.
 - Store package SHA-256: `c785ab406271f7f0a3eb8cfd50681fc05533629e03dfe83b582e7e5c66460b74`.
 - Marketing kit SHA-256: `261f9ecf62a1c4730d36576f548e3d2da86c4d1097ce4344752775c192eefb65`.
+- Public GitHub release creation returned `https://github.com/remriel/chatgpt-emoji-titles/releases/tag/v1.5.0`.
 
 ## Blockers
 
@@ -55,7 +55,6 @@ Version 1.5 adds store icons and public marketing materials. The user will publi
 
 ## Exact next steps
 
-1. Run regression tests, syntax checks, icon and ZIP validation, and inspect the final git diff.
-2. Commit and push version 1.5 source, listing copy, privacy policies, and media assets.
-3. Create GitHub release v1.5.0 with the store ZIP and marketing ZIP, then verify asset digests and public URLs.
-4. Give the user the store package, listing kit, and exact remaining dashboard steps.
+1. The user uploads the store ZIP and separate images/copy from the marketing kit in the Chrome Web Store and Microsoft Edge Add-ons dashboards.
+2. After store approval, add the live store links to the README and launch copy.
+3. If a store reviewer reports a blocking issue, fix that issue and publish a new version.

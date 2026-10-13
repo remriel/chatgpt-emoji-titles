@@ -23,7 +23,8 @@
 - Automatic scans are serialized to prevent overlapping title updates.
 - The internal ChatGPT web endpoint may change. Failed chats are not retried until page reload.
 - Permission scope is `chatgpt.com` plus extension storage.
-- Private GitHub repository: `https://github.com/remriel/chatgpt-emoji-titles`.
+- GitHub repository: `https://github.com/remriel/chatgpt-emoji-titles`. Its current visibility is public (verified October 13, 2026).
+- GitHub release `v1.4.0`: `https://github.com/remriel/chatgpt-emoji-titles/releases/tag/v1.4.0`; ZIP SHA-256 `e781a4fb6f917afa8c472df29ef7c2f7487996f49afb2c445c62bdda66ac4576`.
 
 ## Relevant files
 
@@ -36,8 +37,8 @@
 - Only chats loaded into the current sidebar are eligible for automatic processing.
 - Topic matching is rule based and may fall back to a random emoji when no category matches.
 - ChatGPT may change its internal title update endpoint or session response.
-- Live signed-in ChatGPT UI verification remains to be done; the available in-app browser session is signed out.
+- The user confirmed the extension works in their signed-in ChatGPT browser on October 13, 2026. Future ChatGPT interface or endpoint changes may still require maintenance.
 
 ## RESUME HERE
 
-Load version 1.4 unpacked in Chrome or Edge, test manual add/remove and automatic add/remove on a signed-in ChatGPT account, and inspect the displayed HTTP status if an update fails. Eight regression tests currently pass. Repackage and push any follow-up fix.
+Version 1.4 is released with an attached ZIP and user-confirmed signed-in functionality. Eight regression tests pass. No required work remains; if ChatGPT changes its endpoints or UI, reproduce the new failure, update the extension, rerun tests, and publish a new release.

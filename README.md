@@ -1,5 +1,7 @@
 # ChatGPT Emoji Titles
 
+[Download the latest packaged release](https://github.com/remriel/chatgpt-emoji-titles/releases/tag/v1.4.0).
+
 A Chrome and Edge extension that adds a relevant emoji to ChatGPT conversation titles, with a separate option to remove leading emoji:
 
 - **Manual add:** Select **Select to add emoji →**, then click one chat in the ChatGPT sidebar. Press Esc to cancel.

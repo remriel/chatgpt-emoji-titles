@@ -19,13 +19,14 @@ Deliver a Chrome and Edge extension that adds topic-relevant emoji or removes le
 - [x] Add local relevance matching from title and conversation text without Groq.
 - [x] Add single-chat manual removal with a separate select button.
 - [x] Prevent opposing automatic mode from undoing a manual action.
-- [ ] Verify all four actions against a signed-in ChatGPT page.
+- [x] Verify extension functionality against a signed-in ChatGPT page (user confirmed it works).
+- [x] Publish GitHub release v1.4.0 with the ZIP asset.
 
-Progress: **85% toward a verified, publishable result**.
+Progress: **100% — verified and released**.
 
 ## Current state
 
-Version 1.4 source is complete and can be loaded unpacked. Browser live verification is outstanding.
+Version 1.4 source is complete, the user confirmed signed-in behavior, and GitHub release v1.4.0 contains the packaged ZIP.
 
 ## Tests and verification
 
@@ -34,15 +35,14 @@ Version 1.4 source is complete and can be loaded unpacked. Browser live verifica
 - Initial source pushed to private GitHub repository.
 - `npm test` passes eight regression tests, including single-chat manual removal and a no-emoji no-op.
 - Available ChatGPT browser session was inspected but is signed out, so it has no chat sidebar to test live.
+- The user confirmed on October 13, 2026 that the extension works perfectly in their browser.
+- GitHub release asset digest matches the local ZIP SHA-256: `e781a4fb6f917afa8c472df29ef7c2f7487996f49afb2c445c62bdda66ac4576`.
 
 ## Blockers
 
-- Signed-in ChatGPT page access is needed for end-to-end UI testing.
+- None.
 
 ## Exact next steps
 
-1. Load extension unpacked in Chrome or Edge and reload ChatGPT.
-2. Test manual add and manual remove on individual chats.
-3. Test automatic add, then automatic remove on visible sidebar chats; verify title text is unchanged.
-4. If the request fails, use the displayed HTTP status to update authentication or endpoint handling.
-5. Repackage and mark verified.
+1. No required steps remain for v1.4.0.
+2. For any future ChatGPT UI or endpoint change, reproduce the failure, update code and tests, then publish a new release.

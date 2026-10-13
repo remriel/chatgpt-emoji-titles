@@ -1,10 +1,12 @@
 {
   "manifest_version": 3,
-  "name": "ChatGPT Emoji Titles",
-  "version": "1.4.0",
-  "description": "Add relevant emoji to ChatGPT chat titles or automatically remove leading emoji.",
-  "permissions": ["storage", "activeTab"],
+  "name": "Chat Emoji Titles",
+  "version": "1.5.0",
+  "description": "Add or remove emoji from ChatGPT chat titles, one at a time or automatically.",
+  "homepage_url": "https://github.com/remriel/chatgpt-emoji-titles",
+  "permissions": ["storage"],
   "host_permissions": ["https://chatgpt.com/*"],
-  "action": {"default_popup": "popup.html", "default_title": "ChatGPT Emoji Titles"},
+  "icons": {"16": "assets/icons/icon-16.png", "32": "assets/icons/icon-32.png", "48": "assets/icons/icon-48.png", "128": "assets/icons/icon-128.png"},
+  "action": {"default_popup": "popup.html", "default_title": "Chat Emoji Titles", "default_icon": {"16": "assets/icons/icon-16.png", "32": "assets/icons/icon-32.png"}},
   "content_scripts": [{"matches": ["https://chatgpt.com/*"], "js": ["content.js"], "run_at": "document_idle"}]
 }

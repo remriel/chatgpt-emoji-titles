@@ -1,6 +1,10 @@
-# ChatGPT Emoji Titles
+# Chat Emoji Titles
 
-[Download the latest packaged release](https://github.com/remriel/chatgpt-emoji-titles/releases/tag/v1.4.0).
+![Colorful chat mascot with emoji-tagged conversation strips](marketing/store/promo-small-440x280.png)
+
+**Make your conversations easier to spot.** Add a topic-relevant emoji to a ChatGPT chat title—or remove leading emoji while keeping the title text.
+
+[Download the latest release](https://github.com/remriel/chatgpt-emoji-titles/releases/tag/v1.5.0) · [Privacy policy](PRIVACY.md) · [Support and issues](https://github.com/remriel/chatgpt-emoji-titles/issues)
 
 A Chrome and Edge extension that adds a relevant emoji to ChatGPT conversation titles, with a separate option to remove leading emoji:
 
@@ -13,7 +17,11 @@ The two automatic switches are mutually exclusive. Starting manual add turns off
 
 Emoji choice uses a small local topic matcher. It reads the chat title and a limited selection of user messages from the conversation through ChatGPT's own endpoint. If no topic matches, it picks a random emoji. **No Groq key or third-party AI service is needed.**
 
-The extension runs only on `https://chatgpt.com/`. It uses ChatGPT's signed-in web endpoint to save titles. It fetches your ChatGPT session token for authorization, keeps it in memory only, and sends it only to `chatgpt.com`. Conversation text is processed locally in the extension; it is not sent to Groq or another service. Extension storage contains only the two automatic mode preferences.
+The extension runs only on `https://chatgpt.com/`. It uses ChatGPT's signed-in web endpoint to save titles. It fetches your ChatGPT session token for authorization, keeps it in memory only, and sends it only to `chatgpt.com`. Conversation text is processed locally in the extension; it is not sent to Groq or another service. Extension storage contains only the two automatic mode preferences. See the [privacy policy](PRIVACY.md) for details.
+
+![Store preview showing manual add and remove controls](marketing/store/screenshot-manual-1280x800.png)
+
+![Store preview showing separate automatic add and remove switches](marketing/store/screenshot-automatic-1280x800.png)
 
 ## Install
 
@@ -26,6 +34,8 @@ The extension runs only on `https://chatgpt.com/`. It uses ChatGPT's signed-in w
 If you installed an earlier unpacked version, replace its files with this version, click the extension's **Reload** button on the extensions page, and reload ChatGPT. For a ZIP installation, extract the new ZIP and point **Load unpacked** at the extracted folder.
 
 The extension does not depend on ChatGPT's changing conversation menu. It uses the title update request documented by [ChatGPTBox's web API client](https://github.com/ChatGPTBox-dev/chatGPTBox/blob/master/src/services/apis/chatgpt-web.mjs) and the session approach used by a [ChatGPT history browser extension](https://github.com/aykutkardas/ChatGPT-History-Manager). This is an internal ChatGPT web endpoint, so ChatGPT can change it. If a request fails, the extension shows its HTTP status and pauses retries for that chat until the page is reloaded.
+
+Chat Emoji Titles is an independent project and is not affiliated with or endorsed by OpenAI.
 
 ## Development checks
 

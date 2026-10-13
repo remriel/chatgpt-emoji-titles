@@ -41,7 +41,7 @@ function fixture({automatic = false, automaticRemove = false, title = 'First cha
     throw Error(`Unexpected request: ${url}`);
   };
   window.eval(source);
-  return {dom, window, link, saved, requests, message:type => listener({type}, null, () => {})};
+  return {dom, window, link, saved, requests, message:(type, mode) => listener({type, mode}, null, () => {})};
 }
 
 test('manual mode chooses an emoji from conversation text', async () => {
@@ -73,6 +73,36 @@ test('automatic remove strips only leading emoji and preserves title text', asyn
     assert.equal(app.link.textContent, 'Budget 2026');
     assert.deepEqual(JSON.parse(app.requests.find(request => request.options.method === 'PATCH').options.body), {title:'Budget 2026'});
     assert.equal(app.requests.filter(request => request.url === '/backend-api/conversation/one' && !request.options.method).length, 0);
+  } finally {app.dom.window.close();}
+});
+
+test('manual remove changes only the selected chat and turns off automatic add', async () => {
+  const app = fixture({automatic:true, title:'🐙 Project plan'});
+  try {
+    const other = app.window.document.createElement('a');
+    other.href = '/c/two';
+    other.textContent = '🎨 Other chat';
+    app.window.document.getElementById('history').append(other);
+    app.message('START_PICKING', 'remove');
+    app.link.dispatchEvent(new app.window.MouseEvent('click', {bubbles:true, cancelable:true}));
+    await pause(300);
+    assert.equal(app.link.textContent, 'Project plan');
+    assert.equal(other.textContent, '🎨 Other chat');
+    assert.equal(app.saved.automatic, false);
+    assert.deepEqual(JSON.parse(app.requests.find(request => request.options.method === 'PATCH').options.body), {title:'Project plan'});
+    assert.equal(app.requests.filter(request => request.url === '/backend-api/conversation/one' && !request.options.method).length, 0);
+  } finally {app.dom.window.close();}
+});
+
+test('manual remove leaves a chat without leading emoji unchanged', async () => {
+  const app = fixture({title:'Project plan'});
+  try {
+    app.message('START_PICKING', 'remove');
+    app.link.dispatchEvent(new app.window.MouseEvent('click', {bubbles:true, cancelable:true}));
+    await pause(100);
+    assert.equal(app.link.textContent, 'Project plan');
+    assert.equal(app.requests.filter(request => request.options.method === 'PATCH').length, 0);
+    assert.match(app.window.document.body.textContent, /no leading emoji/i);
   } finally {app.dom.window.close();}
 });
 

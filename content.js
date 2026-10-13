@@ -28,7 +28,7 @@
   let busy = false;
   let scanRunning = false;
   let scanPending = false;
-  let picking = false;
+  let pickingMode = null;
   let scanTimer;
   let automaticMode = null;
   let accessToken = null;
@@ -177,14 +177,14 @@
   }
 
   async function scan() {
-    if (!automaticMode || picking) return;
+    if (!automaticMode || pickingMode) return;
     if (scanRunning) { scanPending = true; return; }
     scanRunning = true;
     try {
       const mode = automaticMode;
       const links = [...document.querySelectorAll(CHAT_LINK)].filter(link => link.closest('nav,aside,[role="navigation"],#history'));
       for (const link of links) {
-        if (automaticMode !== mode || picking) break;
+        if (automaticMode !== mode || pickingMode) break;
         const id = chatId(link);
         if (!id) continue;
         const savedTitle = savedTitles.get(id);
@@ -221,40 +221,49 @@
   }
 
   function stopPicking() {
-    picking = false;
+    pickingMode = null;
     document.documentElement.style.removeProperty('cursor');
     notify('Chat selection cancelled.');
     scheduleScan();
   }
 
   document.addEventListener('keydown', event => {
-    if (picking && event.key === 'Escape') stopPicking();
+    if (pickingMode && event.key === 'Escape') stopPicking();
   }, true);
 
   document.addEventListener('click', async event => {
-    if (!picking) return;
+    if (!pickingMode) return;
     const link = event.target.closest?.(CHAT_LINK);
     if (!link || !link.closest('nav,aside,[role="navigation"],#history')) return;
     event.preventDefault();
     event.stopImmediatePropagation();
-    picking = false;
+    const mode = pickingMode;
+    pickingMode = null;
     document.documentElement.style.removeProperty('cursor');
-    failed.delete(`add:${chatId(link)}`);
-    const success = await rename(link, 'add');
-    if (success) notify('Emoji added to chat title.');
-    else if (withoutLeadingEmoji(titleOf(link)) !== null) notify('This chat already has an emoji.');
+    failed.delete(`${mode}:${chatId(link)}`);
+    const success = await rename(link, mode);
+    if (success) notify(mode === 'remove' ? 'Leading emoji removed from chat title.' : 'Emoji added to chat title.');
+    else if (mode === 'add' && withoutLeadingEmoji(titleOf(link)) !== null) notify('This chat already has an emoji.');
+    else if (mode === 'remove' && !failed.has(`remove:${chatId(link)}`)) {
+      const remainder = withoutLeadingEmoji(titleOf(link));
+      if (remainder === '') notify('An emoji-only title cannot be made empty.');
+      else if (remainder === null) notify('This chat has no leading emoji.');
+    }
     scheduleScan();
   }, true);
 
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     if (message.type === 'START_PICKING') {
-      picking = true;
-      if (automaticMode === 'remove') {
+      pickingMode = message.mode === 'remove' ? 'remove' : 'add';
+      if (pickingMode === 'add' && automaticMode === 'remove') {
         automaticMode = null;
         chrome.storage.local.set({automaticRemove:false});
+      } else if (pickingMode === 'remove' && automaticMode === 'add') {
+        automaticMode = null;
+        chrome.storage.local.set({automatic:false});
       }
       document.documentElement.style.setProperty('cursor', 'crosshair', 'important');
-      notify('Click a chat in the sidebar. Press Esc to cancel.');
+      notify(pickingMode === 'remove' ? 'Click a chat to remove its leading emoji. Press Esc to cancel.' : 'Click a chat to add an emoji. Press Esc to cancel.');
       sendResponse({ ok: true });
     }
     if (message.type === 'AUTOMATIC_CHANGED') {

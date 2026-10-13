@@ -2,11 +2,12 @@
 
 A Chrome and Edge extension that adds a relevant emoji to ChatGPT conversation titles, with a separate option to remove leading emoji:
 
-- **Manual add:** Open the extension popup and select **Select a chat →**, then click one chat in the ChatGPT sidebar. Press Esc to cancel.
+- **Manual add:** Select **Select to add emoji →**, then click one chat in the ChatGPT sidebar. Press Esc to cancel.
+- **Manual remove:** Select **Select to remove emoji →**, then click one chat. Only that chat's leading emoji is removed; its title text stays intact.
 - **Automatic add:** Turn on **Add relevant emoji**. The extension works through chats shown in the sidebar one at a time and processes new ones as they appear.
 - **Automatic remove:** Turn on **Remove leading emoji**. The extension removes emoji from the start of visible chat titles and keeps the rest of each title. An emoji-only title is left alone to avoid an empty title.
 
-The two automatic switches are mutually exclusive. Starting manual add while automatic remove is on turns removal off, so it cannot immediately undo the manual change.
+The two automatic switches are mutually exclusive. Starting manual add turns off automatic remove; starting manual remove turns off automatic add. This prevents an automatic mode from immediately undoing a manual change.
 
 Emoji choice uses a small local topic matcher. It reads the chat title and a limited selection of user messages from the conversation through ChatGPT's own endpoint. If no topic matches, it picks a random emoji. **No Groq key or third-party AI service is needed.**
 
@@ -26,4 +27,4 @@ The extension does not depend on ChatGPT's changing conversation menu. It uses t
 
 ## Development checks
 
-Run `npm install` and `npm test` to execute the manual add, automatic add, automatic remove, and popup mode regression tests.
+Run `npm install` and `npm test` to execute the manual add and remove, automatic add and remove, and popup mode regression tests.

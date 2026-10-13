@@ -1,6 +1,7 @@
 const automatic = document.getElementById('automatic');
 const automaticRemove = document.getElementById('automatic-remove');
 const pick = document.getElementById('pick');
+const pickRemove = document.getElementById('pick-remove');
 const status = document.getElementById('status');
 
 async function activeChatTab() {
@@ -25,16 +26,19 @@ async function updateAutomaticMode(changed) {
 automatic.addEventListener('change', () => updateAutomaticMode(automatic));
 automaticRemove.addEventListener('change', () => updateAutomaticMode(automaticRemove));
 
-pick.addEventListener('click', async () => {
+async function startPicking(mode) {
   const tab = await activeChatTab();
   if (!tab) {
     status.textContent = 'Open a chatgpt.com tab first.';
     return;
   }
   try {
-    await chrome.tabs.sendMessage(tab.id, { type: 'START_PICKING' });
+    await chrome.tabs.sendMessage(tab.id, { type: 'START_PICKING', mode });
     window.close();
   } catch {
     status.textContent = 'Reload the ChatGPT tab, then try again.';
   }
-});
+}
+
+pick.addEventListener('click', () => startPicking('add'));
+pickRemove.addEventListener('click', () => startPicking('remove'));

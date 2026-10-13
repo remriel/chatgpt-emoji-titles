@@ -10,12 +10,14 @@ test('automatic add and remove switches are mutually exclusive', async () => {
   const dom = new JSDOM(html, {url:'https://chatgpt.com/', runScripts:'outside-only'});
   const {window} = dom;
   const saved = {automatic:true, automaticRemove:false};
+  const messages = [];
+  window.close = () => {};
   window.chrome = {
     storage:{local:{
       get:(_defaults, callback) => callback({...saved}),
       set:async values => {Object.assign(saved, values);}
     }},
-    tabs:{query:async () => [{id:1, url:'https://chatgpt.com/'}], sendMessage:async () => ({ok:true})}
+    tabs:{query:async () => [{id:1, url:'https://chatgpt.com/'}], sendMessage:async (_id, message) => {messages.push(message); return {ok:true};}}
   };
   try {
     window.eval(source);
@@ -34,5 +36,9 @@ test('automatic add and remove switches are mutually exclusive', async () => {
     assert.equal(add.checked, true);
     assert.equal(remove.checked, false);
     assert.deepEqual(saved, {automatic:true, automaticRemove:false});
+    window.document.getElementById('pick-remove').click();
+    await new Promise(resolve => setTimeout(resolve, 0));
+    assert.equal(messages.at(-1).type, 'START_PICKING');
+    assert.equal(messages.at(-1).mode, 'remove');
   } finally {dom.window.close();}
 });

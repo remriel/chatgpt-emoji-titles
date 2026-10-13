@@ -1,0 +1,58 @@
+name: Package extension release
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - ".github/workflows/extension-release.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  package-release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Create extension ZIP
+        shell: bash
+        run: |
+          set -euo pipefail
+          zip -q -r "$RUNNER_TEMP/chat-emoji-titles-v1.5.0.zip" \
+            manifest.json content.js popup.html popup.css popup.js assets/icons
+          unzip -Z1 "$RUNNER_TEMP/chat-emoji-titles-v1.5.0.zip" | sort
+      - name: Replace release attachments with the extension only
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          archive="chat-emoji-titles-v1.5.0.zip"
+          gh release upload v1.5.0 "$RUNNER_TEMP/$archive" --clobber
+          while IFS= read -r attachment; do
+            if [[ -n "$attachment" && "$attachment" != "$archive" ]]; then
+              gh release delete-asset v1.5.0 "$attachment" --yes
+            fi
+          done < <(gh release view v1.5.0 --json assets --jq '.assets[].name')
+          cat > "$RUNNER_TEMP/release-notes.md" <<'NOTES'
+          ## Chat Emoji Titles v1.5.0
+
+          A Chrome and Edge extension that adds topic-relevant emoji to ChatGPT conversation titles or removes leading emoji.
+
+          ### Download and install
+
+          Download `chat-emoji-titles-v1.5.0.zip`, extract it, then open `chrome://extensions` or `edge://extensions`, enable Developer mode, and select **Load unpacked**. Choose the extracted folder containing `manifest.json`.
+
+          ### Features
+
+          - Manual add and remove for a selected conversation.
+          - Automatic add or remove for visible conversations.
+          - Local emoji relevance matching.
+          - No external AI key required.
+
+          User-tested in a signed-in ChatGPT browser on October 13, 2026.
+          NOTES
+          gh release edit v1.5.0 --title "Chat Emoji Titles v1.5.0" --notes-file "$RUNNER_TEMP/release-notes.md"
+          count="$(gh release view v1.5.0 --json assets --jq '.assets | length')"
+          test "$count" -eq 1

@@ -1,42 +1,42 @@
 # Chat Emoji Titles
 
-![Colorful chat mascot with emoji-tagged conversation strips](marketing/store/promo-small-440x280.png)
+![Chat Emoji Titles extension icon](assets/icons/icon-128.png)
 
-**Make your conversations easier to spot.** Add a topic-relevant emoji to a ChatGPT chat title—or remove leading emoji while keeping the title text.
+Add a topic-relevant emoji to ChatGPT conversation titles, or remove leading emoji without changing the title text. Works in Chrome and Edge.
 
-[Download the latest release](https://github.com/remriel/chatgpt-emoji-titles/releases/tag/v1.5.0) · [Privacy policy](PRIVACY.md) · [Support and issues](https://github.com/remriel/chatgpt-emoji-titles/issues)
+**[Download the browser extension](https://github.com/remriel/chatgpt-emoji-titles/releases/latest)** · [Privacy](PRIVACY.md) · [Report an issue](https://github.com/remriel/chatgpt-emoji-titles/issues)
 
-A Chrome and Edge extension that adds a relevant emoji to ChatGPT conversation titles, with a separate option to remove leading emoji:
+## Features
 
-- **Manual add:** Select **Select to add emoji →**, then click one chat in the ChatGPT sidebar. Press Esc to cancel.
-- **Manual remove:** Select **Select to remove emoji →**, then click one chat. Only that chat's leading emoji is removed; its title text stays intact.
-- **Automatic add:** Turn on **Add relevant emoji**. The extension works through chats shown in the sidebar one at a time and processes new ones as they appear.
-- **Automatic remove:** Turn on **Remove leading emoji**. The extension removes emoji from the start of visible chat titles and keeps the rest of each title. An emoji-only title is left alone to avoid an empty title.
+- **Manual add:** Click **Select to add emoji →** in the extension popup, then choose a conversation in the ChatGPT sidebar. Press Esc to cancel.
+- **Manual remove:** Click **Select to remove emoji →**, then choose a conversation to remove its leading emoji.
+- **Automatic add:** Enable **Add relevant emoji** to update conversations visible in the sidebar as they appear.
+- **Automatic remove:** Enable **Remove leading emoji** to clear leading emoji from visible conversations. Emoji-only titles remain unchanged.
 
-The two automatic switches are mutually exclusive. Starting manual add turns off automatic remove; starting manual remove turns off automatic add. This prevents an automatic mode from immediately undoing a manual change.
+The automatic modes are mutually exclusive. Manual actions disable an opposing automatic mode so it cannot immediately reverse your choice.
 
-Emoji choice uses a small local topic matcher. It reads the chat title and a limited selection of user messages from the conversation through ChatGPT's own endpoint. If no topic matches, it picks a random emoji. **No Groq key or third-party AI service is needed.**
-
-The extension runs only on `https://chatgpt.com/`. It uses ChatGPT's signed-in web endpoint to save titles. It fetches your ChatGPT session token for authorization, keeps it in memory only, and sends it only to `chatgpt.com`. Conversation text is processed locally in the extension; it is not sent to Groq or another service. Extension storage contains only the two automatic mode preferences. See the [privacy policy](PRIVACY.md) for details.
-
-![Store preview showing manual add and remove controls](marketing/store/screenshot-manual-1280x800.png)
-
-![Store preview showing separate automatic add and remove switches](marketing/store/screenshot-automatic-1280x800.png)
+Emoji selection uses a local, keyword-based topic matcher over the title and a limited selection of user messages. When there is no topic match, it uses a random emoji. No external AI key or service is required.
 
 ## Install
 
-1. Extract the ZIP, if needed.
-2. In Chrome, open `chrome://extensions`; in Edge, open `edge://extensions`.
-3. Enable **Developer mode**.
-4. Choose **Load unpacked** and select this folder.
-5. Reload an open ChatGPT tab.
+1. Download `chat-emoji-titles-v1.5.0.zip` from the [latest release](https://github.com/remriel/chatgpt-emoji-titles/releases/latest) and extract it.
+2. Open `chrome://extensions` in Chrome or `edge://extensions` in Edge.
+3. Turn on **Developer mode**.
+4. Click **Load unpacked** and select the extracted folder containing `manifest.json`.
+5. Reload any open ChatGPT tabs.
 
-If you installed an earlier unpacked version, replace its files with this version, click the extension's **Reload** button on the extensions page, and reload ChatGPT. For a ZIP installation, extract the new ZIP and point **Load unpacked** at the extracted folder.
+For updates, replace the extracted files, click **Reload** for the extension on the browser extensions page, and reload ChatGPT. You can also clone this repository and use its root directory with **Load unpacked**.
 
-The extension does not depend on ChatGPT's changing conversation menu. It uses the title update request documented by [ChatGPTBox's web API client](https://github.com/ChatGPTBox-dev/chatGPTBox/blob/master/src/services/apis/chatgpt-web.mjs) and the session approach used by a [ChatGPT history browser extension](https://github.com/aykutkardas/ChatGPT-History-Manager). This is an internal ChatGPT web endpoint, so ChatGPT can change it. If a request fails, the extension shows its HTTP status and pauses retries for that chat until the page is reloaded.
+## Privacy and compatibility
 
-Chat Emoji Titles is an independent project and is not affiliated with or endorsed by OpenAI.
+The extension runs on `https://chatgpt.com/`. It retrieves your existing ChatGPT session authorization in memory to save title changes through ChatGPT's own web endpoints. It processes conversation text locally and retains only automatic-mode preferences in extension storage. Read [PRIVACY.md](PRIVACY.md) for details.
 
-## Development checks
+The extension relies on internal ChatGPT endpoints that may change. If a title update fails, it displays the HTTP error and pauses further retries for that conversation until the page reloads.
 
-Run `npm install` and `npm test` to execute the manual add and remove, automatic add and remove, and popup mode regression tests.
+This is an independent extension and is not affiliated with or endorsed by OpenAI.
+
+## Development
+
+Run `npm install` and `npm test` to execute the regression tests. Use `node --check content.js` and `node --check popup.js` for JavaScript syntax checks.
+
+A GitHub Actions workflow packages the six runtime files and extension icons into one release ZIP. It excludes tests, docs and development files.

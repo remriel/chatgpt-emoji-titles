@@ -40,3 +40,5 @@ This is an independent extension and is not affiliated with or endorsed by OpenA
 Run `npm install` and `npm test` to execute the regression tests. Use `node --check content.js` and `node --check popup.js` for JavaScript syntax checks.
 
 A GitHub Actions workflow packages the six runtime files and extension icons into one release ZIP. It excludes tests, docs and development files.
+
+If you find this project useful, you can [buy me a coffee](https://buymeacoffee.com/remriel).
